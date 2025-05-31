@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cks-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cks-frontend
+  template:
+    metadata:
+      labels:
+        app: cks-frontend
+    spec:
+      containers:
+        - name: cks-frontend
+          image: registry.fullstack.pw/library/cks-frontend:latest
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
