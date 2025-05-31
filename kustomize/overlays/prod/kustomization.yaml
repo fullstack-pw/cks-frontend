@@ -25,3 +25,8 @@ patches:
     target:
       kind: Deployment
       name: cks-frontend
+configMapGenerator:
+  - name: cks-frontend-config
+    behavior: merge
+    envs: 
+      - configmap

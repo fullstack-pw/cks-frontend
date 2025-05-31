@@ -18,3 +18,8 @@ patches:
     target:
       kind: Ingress
       name: cks-frontend
+configMapGenerator:
+  - name: cks-frontend-config
+    behavior: merge
+    envs: 
+      - configmap

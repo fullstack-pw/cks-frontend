@@ -23,4 +23,4 @@ spec:
               service:
                 name: cks-frontend
                 port:
-                  number: 80
+                  number: 3000
