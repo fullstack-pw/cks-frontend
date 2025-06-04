@@ -6,4 +6,4 @@ data:
   ENVIRONMENT: env
   LOG_LEVEL: loglevel
   LOG_FORMAT: json
-  NEXT_PUBLIC_API_BASE_URL: backend
+  API_BASE_URL: backend

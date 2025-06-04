@@ -49,7 +49,7 @@ run: ## Run container locally
 	@echo "Running $(APP_NAME) locally..."
 	docker run --rm -it \
 		-p 3000:3000 \
-		-e NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api/v1 \
+		-e API_BASE_URL=http://localhost:8080/api/v1 \
 		--name $(APP_NAME) \
 		$(IMAGE)
 

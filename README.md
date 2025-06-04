@@ -56,7 +56,7 @@ Create `.env.local` for local development:
 
 ```bash
 # Backend API URL
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api/v1
+API_BASE_URL=http://localhost:8080/api/v1
 
 # Optional: Disable Next.js telemetry
 NEXT_TELEMETRY_DISABLED=1

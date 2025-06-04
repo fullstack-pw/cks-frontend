@@ -3,7 +3,14 @@
 import ErrorHandler from '../utils/errorHandler';
 
 // Use environment variable with fallback to localhost
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
+// Get API URL from runtime config or fallback
+const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined' && window.__API_BASE_URL__) {
+    return window.__API_BASE_URL__;
+  }
+  return 'http://localhost:8080/api/v1'; // fallback for development
+};
+
 const DEFAULT_TIMEOUT = 120000; // 30 seconds default timeout
 
 /**
@@ -22,7 +29,7 @@ class ApiClient {
         const { signal } = controller;
 
         // Add debug logging
-        const fullUrl = `${API_BASE_URL}${url}`;
+        const fullUrl = `${getApiBaseUrl()}${url}`;
         console.log('[API] Request:', options.method || 'GET', fullUrl);
 
         // Set up timeout
@@ -265,7 +272,7 @@ class ApiClient {
  */
 export const createTerminalConnection = (terminalId) => {
     // Get backend URL from environment
-    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
+    const backendUrl = process.env.API_BASE_URL || 'http://localhost:8080/api/v1';
 
     // Parse backend URL to get host and protocol
     const url = new URL(backendUrl);
