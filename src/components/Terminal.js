@@ -50,8 +50,10 @@ const TerminalComponent = dynamic(
                     terminal.current.writeln('\r\nConnecting to terminal...');
 
                     try {
-                        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                        const host = window.location.host;
+                        const apiBaseUrl = window.__API_BASE_URL__ || 'http://localhost:8080/api/v1';
+                        const apiUrl = new URL(apiBaseUrl);
+                        const protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+                        const host = apiUrl.host;
                         const wsPath = `/api/v1/terminals/${terminalId}/attach`;
                         const wsUrl = `${protocol}//${host}${wsPath}`;
 
