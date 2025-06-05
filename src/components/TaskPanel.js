@@ -40,7 +40,7 @@ const TaskPanel = ({ sessionId, scenarioId }) => {
 
             try {
                 setLoading(true);
-                const response = await fetch(`/api/v1/scenarios/${scenarioId}`);
+                const response = await fetch(`${window.__API_BASE_URL__ || 'http://localhost:8080/api/v1'}/scenarios/${scenarioId}`);
                 if (!response.ok) {
                     throw new Error(`Failed to fetch scenario: ${response.status}`);
                 }

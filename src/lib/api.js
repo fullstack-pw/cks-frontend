@@ -2,13 +2,20 @@
 
 import ErrorHandler from '../utils/errorHandler';
 
-// Use environment variable with fallback to localhost
 // Get API URL from runtime config or fallback
 const getApiBaseUrl = () => {
-  if (typeof window !== 'undefined' && window.__API_BASE_URL__) {
-    return window.__API_BASE_URL__;
-  }
-  return 'http://localhost:8080/api/v1'; // fallback for development
+    if (typeof window !== 'undefined') {
+        console.log('[DEBUG] All window API properties:', {
+            __API_BASE_URL__: window.__API_BASE_URL__,
+            location_origin: window.location.origin,
+            location_hostname: window.location.hostname
+        });
+
+        if (window.__API_BASE_URL__) {
+            return window.__API_BASE_URL__;
+        }
+    }
+    return 'http://localhost:8080/api/v1'; // fallback for development
 };
 
 const DEFAULT_TIMEOUT = 120000; // 30 seconds default timeout
@@ -31,6 +38,8 @@ class ApiClient {
         // Add debug logging
         const fullUrl = `${getApiBaseUrl()}${url}`;
         console.log('[API] Request:', options.method || 'GET', fullUrl);
+        console.log('[API] getApiBaseUrl() returned:', getApiBaseUrl());
+        console.log('[API] window.__API_BASE_URL__:', typeof window !== 'undefined' ? window.__API_BASE_URL__ : 'undefined (server)');
 
         // Set up timeout
         const timeoutId = setTimeout(() => {

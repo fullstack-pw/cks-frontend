@@ -18,7 +18,24 @@ function MyApp({ Component, pageProps, apiBaseUrl }) {
             {/* Inject API URL for client-side use */}
             <script
                 dangerouslySetInnerHTML={{
-                    __html: `window.__API_BASE_URL__ = ${JSON.stringify(apiBaseUrl)};`
+                    __html: `
+            // Set initial value
+            window.__API_BASE_URL__ = ${JSON.stringify(apiBaseUrl)};
+            console.log('[DEBUG] Initial injection:', window.__API_BASE_URL__);
+            
+            // Create a trap to detect overwrites
+            let _apiUrl = ${JSON.stringify(apiBaseUrl)};
+            Object.defineProperty(window, '__API_BASE_URL__', {
+                get: function() {
+                    return _apiUrl;
+                },
+                set: function(value) {
+                    console.log('[DEBUG] API_BASE_URL being changed from:', _apiUrl, 'to:', value);
+                    console.trace();
+                    _apiUrl = value;
+                }
+            });
+        `
                 }}
             />
             <ToastProvider>
@@ -35,7 +52,7 @@ function MyApp({ Component, pageProps, apiBaseUrl }) {
 MyApp.getInitialProps = async () => {
     // Read API_BASE_URL from server environment at runtime
     const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:8080/api/v1';
-    
+
     return {
         apiBaseUrl
     };
