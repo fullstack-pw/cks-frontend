@@ -1,5 +1,6 @@
 // frontend/hooks/useTaskValidation.js
 import { useState, useCallback, useRef } from 'react';
+import api from '../lib/api';
 
 export function useTaskValidation(sessionId, taskId) {
   const [isValidating, setIsValidating] = useState(false);
@@ -14,33 +15,13 @@ export function useTaskValidation(sessionId, taskId) {
     if (isValidating || !sessionId || !taskId) return null;
 
     // Cancel any existing request
-    if (activeRequest.current) {
-      activeRequest.current.abort();
-    }
-
-    const controller = new AbortController();
-    activeRequest.current = controller;
-
     try {
       setIsValidating(true);
       setError(null);
 
       console.log(`[TaskValidation] Starting validation for task ${taskId} in session ${sessionId}`);
 
-      const response = await fetch(`/api/v1/sessions/${sessionId}/tasks/${taskId}/validate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Validation failed: ${response.status}`);
-      }
-
-      const result = await response.json();
+      const result = await api.tasks.validate(sessionId, taskId);
 
       console.log(`[TaskValidation] Validation completed:`, result);
 
