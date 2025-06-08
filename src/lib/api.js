@@ -272,6 +272,37 @@ class ApiClient {
         }, 1, 120000), // Longer timeout for validation (60s) with 1 retry
         getValidationRules: (scenarioId, taskId) => this.fetchWithRetry(`/scenarios/${scenarioId}/tasks/${taskId}/validation`),
     };
+    // Admin endpoints
+    admin = {
+        /**
+         * Get all clusters status and details
+         * @returns {Promise<Object>} - Clusters data with stats and details
+         */
+        getClusters: () => this.fetchWithRetry('/admin/clusters'),
+
+        /**
+         * Get all active sessions (admin view)
+         * @returns {Promise<Object>} - Sessions data with stats
+         */
+        getSessions: () => this.fetchWithRetry('/admin/sessions'),
+
+        /**
+         * Release all clusters
+         * @returns {Promise<Object>} - Operation result
+         */
+        releaseAllClusters: () => this.fetchWithRetry('/admin/release-all-clusters', {
+            method: 'POST'
+        }),
+
+        /**
+         * Delete a session (admin operation)
+         * @param {string} sessionId - Session ID to delete
+         * @returns {Promise<null>} - Success indicator
+         */
+        deleteSession: (sessionId) => this.fetchWithRetry(`/sessions/${sessionId}`, {
+            method: 'DELETE'
+        })
+    };
 }
 
 /**
