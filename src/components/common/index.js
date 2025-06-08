@@ -1,4 +1,3 @@
-// frontend/components/common/index.js
 export { default as Button } from './Button';
 export { default as Card } from './Card';
 export { default as EmptyState } from './EmptyState';
@@ -9,3 +8,4 @@ export { default as SearchInput } from './SearchInput';
 export { default as Select } from './Select';
 export { default as SplitPanel } from './SplitPanel';
 export { default as StatusIndicator } from './StatusIndicator';
+export { default as ConfirmationModal } from './ConfirmationModal';

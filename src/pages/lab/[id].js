@@ -6,16 +6,19 @@ import Head from 'next/head';
 import TerminalContainer from '../../components/TerminalContainer';
 import TaskPanel from '../../components/TaskPanel';
 import { useSession } from '../../hooks/useSession';
-import { SplitPanel, Button, LoadingState, ErrorState, StatusIndicator } from '../../components/common';
+import { useSessionContext } from '../../contexts/SessionContext';
+import { SplitPanel, Button, LoadingState, ErrorState, StatusIndicator, ConfirmationModal } from '../../components/common';
 
 export default function LabPage() {
     const router = useRouter();
     const { id } = router.query;
     const { session, isLoading, isError, error, extendSession } = useSession(id);
+    const { deleteSession } = useSessionContext();
     const [timeRemaining, setTimeRemaining] = useState(0);
     const [splitSize, setSplitSize] = useState(65);
     const [isMobile, setIsMobile] = useState(false);
     const [activePanel, setActivePanel] = useState('terminal'); // 'terminal' or 'tasks'
+    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
     // Check if mobile on mount and when window resizes
     useEffect(() => {
@@ -59,6 +62,18 @@ export default function LabPage() {
             } catch (error) {
                 console.error('Failed to extend session:', error);
             }
+        }
+    };
+
+    const handleDeleteSession = async () => {
+        try {
+            await deleteSession(id);
+            // deleteSession already handles the redirect to home page
+        } catch (error) {
+            console.error('Failed to delete session:', error);
+            // Error is already handled by the context and shown as toast
+        } finally {
+            setShowDeleteConfirmation(false);
         }
     };
 
@@ -126,6 +141,13 @@ export default function LabPage() {
                             Extend Time
                         </Button>
                         <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => setShowDeleteConfirmation(true)}
+                        >
+                            Delete Session
+                        </Button>
+                        <Button
                             variant="secondary"
                             size="sm"
                             onClick={() => router.push('/')}
@@ -182,6 +204,17 @@ export default function LabPage() {
                     />
                 )}
             </div>
+            {/* Delete confirmation modal */}
+            <ConfirmationModal
+                isOpen={showDeleteConfirmation}
+                onClose={() => setShowDeleteConfirmation(false)}
+                onConfirm={handleDeleteSession}
+                title="Delete Lab Session"
+                message={`Are you sure you want to delete this lab session? This will permanently destroy the lab environment and all your progress will be lost. This action cannot be undone.`}
+                confirmText="Delete Session"
+                cancelText="Keep Session"
+                variant="danger"
+            />
         </div>
     );
 }

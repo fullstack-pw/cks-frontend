@@ -2,3 +2,4 @@ node_modules*
 .next*
 *.img
 *.qcow2
+build*
