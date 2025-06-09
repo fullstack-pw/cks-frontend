@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import ErrorBoundary from './ErrorBoundary';
 
-const Layout = ({ children, title = 'cks CKS Practice', hideHeader = false }) => {
+const Layout = ({ children, title = 'CKS', hideHeader = false }) => {
     const router = useRouter();
 
     return (
@@ -15,7 +15,17 @@ const Layout = ({ children, title = 'cks CKS Practice', hideHeader = false }) =>
                 <Head>
                     <title>{title}</title>
                     <meta name="description" content="Practice for CKS certification with interactive scenarios" />
-                    <link rel="icon" href="/favicon.ico" />
+
+                    {/* Favicon and app icons */}
+                    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+                    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+                    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+                    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+                    {/* Theme and app metadata */}
+                    <meta name="theme-color" content="#326ce5" />
+                    <meta name="application-name" content="CKS Practice" />
+
                     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
                 </Head>
 
