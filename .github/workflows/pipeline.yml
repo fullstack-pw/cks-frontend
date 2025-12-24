@@ -23,14 +23,14 @@ jobs:
       app-name: "cks-frontend"
       app-dockerfile: "Dockerfile"
 
-  dev-deploy:
-    needs: [docker-build-and-push]
-    name: DEV deploy
-    uses: fullstack-pw/pipelines/.github/workflows/deploy-kustomize.yml@main
-    with:
-      kustomize-dir: "./kustomize/overlays/dev"
-      context: "dev"
-      app-name: "cks-frontend"
+  # dev-deploy:
+  #   needs: [docker-build-and-push]
+  #   name: DEV deploy
+  #   uses: fullstack-pw/pipelines/.github/workflows/deploy-kustomize.yml@main
+  #   with:
+  #     kustomize-dir: "./kustomize/overlays/dev"
+  #     context: "dev"
+  #     app-name: "cks-frontend"
 
   # dev-cypress-tests:
   #   needs: dev-deploy
