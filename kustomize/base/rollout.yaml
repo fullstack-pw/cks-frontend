@@ -1,0 +1,63 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: cks-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cks-frontend
+  template:
+    metadata:
+      labels:
+        app: cks-frontend
+    spec:
+      containers:
+        - name: cks-frontend
+          image: registry.fullstack.pw/library/cks-frontend:latest
+          envFrom:
+          - configMapRef:
+              name: cks-frontend-config
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+  strategy:
+    blueGreen:
+      activeService: cks-frontend
+      previewService: cks-frontend-preview
+      autoPromotionEnabled: false
+      scaleDownDelaySeconds: 30
+      prePromotionAnalysis:
+        templates:
+          - templateName: cypress-tests
+        args:
+          - name: app-name
+            value: cks-frontend
+          - name: app-url
+            value: "https://dev.cks.fullstack.pw"
+          - name: environment
+            value: "dev"
+      postPromotionAnalysis:
+        templates:
+          - templateName: promote-to-prod
+        args:
+          - name: app-name
+            value: cks-frontend

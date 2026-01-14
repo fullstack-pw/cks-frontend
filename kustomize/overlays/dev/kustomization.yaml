@@ -4,6 +4,10 @@ kind: Kustomization
 resources:
   - ../../base
 
+images:
+  - name: registry.fullstack.pw/library/cks-frontend
+    newTag: v1.0.0
+
 configMapGenerator:
   - name: cks-frontend-config
     behavior: merge
