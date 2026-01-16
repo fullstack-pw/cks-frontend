@@ -16,8 +16,8 @@ spec:
         - name: cks-frontend
           image: registry.fullstack.pw/library/cks-frontend:latest
           envFrom:
-          - configMapRef:
-              name: cks-frontend-config
+            - configMapRef:
+                name: cks-frontend-config
           ports:
             - containerPort: 3000
           resources:
@@ -43,7 +43,7 @@ spec:
     blueGreen:
       activeService: cks-frontend
       previewService: cks-frontend-preview
-      autoPromotionEnabled: false
+      autoPromotionEnabled: true
       scaleDownDelaySeconds: 30
       prePromotionAnalysis:
         templates:
