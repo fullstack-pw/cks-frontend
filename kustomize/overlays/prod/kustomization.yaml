@@ -6,7 +6,7 @@ resources:
 
 images:
   - name: registry.fullstack.pw/library/cks-frontend
-    newTag: v1.0.0
+    newTag: 0284dc22ac5137f9434b0b78ebc425ccc145e6b3
 
 patches:
   - patch: |-
