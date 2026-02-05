@@ -1,5 +1,4 @@
 # CKS Frontend Makefile
-# Following demo-apps pattern
 
 # Variables
 APP_NAME = cks-frontend

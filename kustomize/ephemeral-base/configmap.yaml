@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cks-frontend-config
+data:
+  ENVIRONMENT: env
+  LOG_LEVEL: loglevel
+  LOG_FORMAT: json
+  API_BASE_URL: backend
