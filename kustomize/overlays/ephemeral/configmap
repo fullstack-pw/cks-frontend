@@ -1,0 +1,3 @@
+ENVIRONMENT=ephemeral
+LOG_LEVEL=DEBUG
+API_BASE_URL=https://dev.api.cks.fullstack.pw/api/v1
