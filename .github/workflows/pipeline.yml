@@ -1,139 +1,139 @@
-# name: App CI/CD Pipeline
+name: App CI/CD Pipeline
 
-# on:
-#   pull_request:
-#     branches:
-#       - main
-#     types:
-#       - opened
-#       - synchronize
-#       - reopened
-#     paths:
-#       - "apps/**"
-#   push:
-#     branches:
-#       - main
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - "apps/**"
+  push:
+    branches:
+      - main
 
-# permissions:
-#   contents: write
+permissions:
+  contents: write
 
-# jobs:
-#   docker-build-and-push:
-#     name: Build and Push
-#     uses: fullstack-pw/pipelines/.github/workflows/build-and-push.yml@main
-#     with:
-#       app-context: "."
-#       app-name: "cks-frontend"
-#       app-dockerfile: "Dockerfile"
+jobs:
+  docker-build-and-push:
+    name: Build and Push
+    uses: fullstack-pw/pipelines/.github/workflows/build-and-push.yml@main
+    with:
+      app-context: "."
+      app-name: "cks-frontend"
+      app-dockerfile: "Dockerfile"
 
-#   update-dev-kustomization:
-#     needs: [docker-build-and-push]
-#     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-#     runs-on: self-hosted
-#     name: Deploy cks-frontend to dev
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
-#         with:
-#           token: ${{ secrets.GITHUB_TOKEN }}
-#           fetch-depth: 0
+  update-dev-kustomization:
+    needs: [docker-build-and-push]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: self-hosted
+    name: Deploy cks-frontend to dev
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
-#       - name: Update dev kustomization with new image tag
-#         run: |
-#           # Use full SHA to match the Docker tag from build-and-push.yml
-#           VERSION="${{ github.sha }}"
-#           KUSTOMIZATION_FILE="kustomize/overlays/dev/kustomization.yaml"
+      - name: Update dev kustomization with new image tag
+        run: |
+          # Use full SHA to match the Docker tag from build-and-push.yml
+          VERSION="${{ github.sha }}"
+          KUSTOMIZATION_FILE="kustomize/overlays/dev/kustomization.yaml"
 
-#           if [ ! -f "$KUSTOMIZATION_FILE" ]; then
-#             echo "Warning: $KUSTOMIZATION_FILE not found, skipping"
-#             exit 0
-#           fi
+          if [ ! -f "$KUSTOMIZATION_FILE" ]; then
+            echo "Warning: $KUSTOMIZATION_FILE not found, skipping"
+            exit 0
+          fi
 
-#           echo "Updating cks-frontend dev to version: $VERSION"
-#           sed -i "s/newTag: .*/newTag: $VERSION/" "$KUSTOMIZATION_FILE"
+          echo "Updating cks-frontend dev to version: $VERSION"
+          sed -i "s/newTag: .*/newTag: $VERSION/" "$KUSTOMIZATION_FILE"
 
-#           git config user.name "GitHub Actions Bot"
-#           git config user.email "actions@github.com"
-#           git add "$KUSTOMIZATION_FILE"
-#           git commit -m "chore(cks-frontend): deploy $VERSION to dev [skip ci]" || echo "No changes to commit"
-#           git push || echo "Nothing to push"
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add "$KUSTOMIZATION_FILE"
+          git commit -m "chore(cks-frontend): deploy $VERSION to dev [skip ci]" || echo "No changes to commit"
+          git push || echo "Nothing to push"
 
-#   # dev-deploy:
-#   #   needs: [docker-build-and-push]
-#   #   name: DEV deploy
-#   #   uses: fullstack-pw/pipelines/.github/workflows/deploy-kustomize.yml@main
-#   #   with:
-#   #     kustomize-dir: "./kustomize/overlays/dev"
-#   #     context: "dev"
-#   #     app-name: "cks-frontend"
+  # dev-deploy:
+  #   needs: [docker-build-and-push]
+  #   name: DEV deploy
+  #   uses: fullstack-pw/pipelines/.github/workflows/deploy-kustomize.yml@main
+  #   with:
+  #     kustomize-dir: "./kustomize/overlays/dev"
+  #     context: "dev"
+  #     app-name: "cks-frontend"
 
-#   # dev-cypress-tests:
-#   #   needs: dev-deploy
-#   #   name: DEV cypress
-#   #   uses: fullstack-pw/pipelines/.github/workflows/cypress.yml@main
-#   #   with:
-#   #     start: npm run cypress:dev
-#   #     env-vars: |
-#   #       {
-#   #         "ENQUEUER_URL": "https://dev.enqueuer.fullstack.pw",
-#   #         "ENVIRONMENT": "dev",
-#   #         "TEST_RETRIES": "2"
-#   #       }
+  # dev-cypress-tests:
+  #   needs: dev-deploy
+  #   name: DEV cypress
+  #   uses: fullstack-pw/pipelines/.github/workflows/cypress.yml@main
+  #   with:
+  #     start: npm run cypress:dev
+  #     env-vars: |
+  #       {
+  #         "ENQUEUER_URL": "https://dev.enqueuer.fullstack.pw",
+  #         "ENVIRONMENT": "dev",
+  #         "TEST_RETRIES": "2"
+  #       }
 
-#   # stg-deploy:
-#   #   # needs: [dev-cypress-tests]
-#   #   name: STG deploy
-#   #   uses: fullstack-pw/pipelines/.github/workflows/deploy-kustomize.yml@main
-#   #   with:
-#   #     kustomize-dir: "./${{ matrix.app.app_path }}/kustomize/overlays/stg"
-#   #     context: "stg"
-#   #     app-name: "cks-frontend"
+  # stg-deploy:
+  #   # needs: [dev-cypress-tests]
+  #   name: STG deploy
+  #   uses: fullstack-pw/pipelines/.github/workflows/deploy-kustomize.yml@main
+  #   with:
+  #     kustomize-dir: "./${{ matrix.app.app_path }}/kustomize/overlays/stg"
+  #     context: "stg"
+  #     app-name: "cks-frontend"
 
-#   # stg-cypress-tests:
-#   #   needs: stg-deploy
-#   #   name: STG cypress
-#   #   uses: fullstack-pw/pipelines/.github/workflows/cypress.yml@main
-#   #   with:
-#   #     start: npm run cypress:stg
-#   #     env-vars: |
-#   #       {
-#   #         "ENQUEUER_URL": "https://stg.enqueuer.fullstack.pw",
-#   #         "WRITER_URL": "https://stg.writer.fullstack.pw",
-#   #         "MEMORIZER_URL": "https://stg.memorizer.fullstack.pw",
-#   #         "ENVIRONMENT": "stg",
-#   #         "TEST_RETRIES": "2"
-#   #       }
+  # stg-cypress-tests:
+  #   needs: stg-deploy
+  #   name: STG cypress
+  #   uses: fullstack-pw/pipelines/.github/workflows/cypress.yml@main
+  #   with:
+  #     start: npm run cypress:stg
+  #     env-vars: |
+  #       {
+  #         "ENQUEUER_URL": "https://stg.enqueuer.fullstack.pw",
+  #         "WRITER_URL": "https://stg.writer.fullstack.pw",
+  #         "MEMORIZER_URL": "https://stg.memorizer.fullstack.pw",
+  #         "ENVIRONMENT": "stg",
+  #         "TEST_RETRIES": "2"
+  #       }
 
-#   # prod-deploy:
-#   #   # needs: [stg-cypress-tests]
-#   #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-#   #   name: PROD deploy
-#   #   uses: fullstack-pw/pipelines/.github/workflows/deploy-kustomize.yml@main
-#   #   with:
-#   #     kustomize-dir: "./${{ matrix.app.app_path }}/kustomize/overlays/prod"
-#   #     context: "prod"
-#   #     app-name: "cks-frontend"
+  # prod-deploy:
+  #   # needs: [stg-cypress-tests]
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  #   name: PROD deploy
+  #   uses: fullstack-pw/pipelines/.github/workflows/deploy-kustomize.yml@main
+  #   with:
+  #     kustomize-dir: "./${{ matrix.app.app_path }}/kustomize/overlays/prod"
+  #     context: "prod"
+  #     app-name: "cks-frontend"
 
-#   versioning:
-#     permissions:
-#       contents: write
-#     runs-on: self-hosted
-#     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-#     name: Versioning
-#     steps:
-#       - name: Get Next Version
-#         id: semver
-#         uses: ietf-tools/semver-action@v1
-#         with:
-#           token: ${{ github.token }}
-#           branch: main
+  versioning:
+    permissions:
+      contents: write
+    runs-on: self-hosted
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: Versioning
+    steps:
+      - name: Get Next Version
+        id: semver
+        uses: ietf-tools/semver-action@v1
+        with:
+          token: ${{ github.token }}
+          branch: main
 
-#       - name: Create Release
-#         uses: ncipollo/release-action@v1.12.0
-#         with:
-#           allowUpdates: true
-#           draft: false
-#           makeLatest: true
-#           tag: ${{ steps.semver.outputs.next }}
-#           body: Changelog Contents
-#           token: ${{ github.token }}
+      - name: Create Release
+        uses: ncipollo/release-action@v1.12.0
+        with:
+          allowUpdates: true
+          draft: false
+          makeLatest: true
+          tag: ${{ steps.semver.outputs.next }}
+          body: Changelog Contents
+          token: ${{ github.token }}
