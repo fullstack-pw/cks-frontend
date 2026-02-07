@@ -9,6 +9,10 @@ env:
   IMAGE_NAME: library/cks-frontend
   VAULT_ADDR: https://vault.fullstack.pw
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   manage-environment:
     runs-on: self-hosted
@@ -24,6 +28,10 @@ jobs:
           DNS_NAME="pr-${{ github.event.pull_request.number }}-${{ github.event.repository.name }}.ephemeral.fullstack.pw"
           echo "cluster_name=$CLUSTER_NAME" >> $GITHUB_OUTPUT
           echo "dns_name=$DNS_NAME" >> $GITHUB_OUTPUT
+
+      - name: Checkout app code
+        if: github.event.action != 'closed'
+        uses: actions/checkout@v4
 
       - name: Checkout infra repo
         uses: actions/checkout@v4
@@ -135,16 +143,15 @@ jobs:
           make ephemeral-apply WORKSPACE=${{ steps.cluster-info.outputs.cluster_name }} MINIMAL=true
 
       # ==================== BUILD AND DEPLOY (PR opened/updated) ====================
-      - name: Checkout app code
-        if: github.event.action != 'closed'
-        uses: actions/checkout@v4
-
       - name: Build and push Docker image
+        id: build
         if: github.event.action != 'closed'
         run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }} .
+          IMAGE_TAG="pr-${{ github.event.pull_request.number }}-${{ github.sha }}"
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG} .
           echo "${HARBOR_KEY}" | docker login ${{ env.REGISTRY }} -u admin --password-stdin
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}
+          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
 
       - name: Extract kubeconfig
         if: github.event.action != 'closed'
@@ -165,10 +172,11 @@ jobs:
           KUBECONFIG: /tmp/kubeconfig
         run: |
           DNS_NAME="${{ steps.cluster-info.outputs.dns_name }}"
+          IMAGE_TAG="${{ steps.build.outputs.image_tag }}"
 
           # Render manifests with updated image tag and DNS hostname
           kubectl kustomize kustomize/overlays/ephemeral \
-            | sed "s|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-will-be-replaced|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}|" \
+            | sed "s|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-will-be-replaced|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}|" \
             | sed "s|dev.cks.fullstack.pw|${DNS_NAME}|g" \
             | kubectl apply -f -
 
@@ -189,6 +197,7 @@ jobs:
           script: |
             const dnsName = '${{ steps.cluster-info.outputs.dns_name }}';
             const clusterName = '${{ steps.cluster-info.outputs.cluster_name }}';
+            const imageTag = '${{ steps.build.outputs.image_tag }}';
 
             const body = `## Ephemeral Environment Ready
 
@@ -196,7 +205,7 @@ jobs:
 
             **URL**: https://${dnsName}
             **Cluster**: \`${clusterName}\`
-            **Image**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}\`
+            **Image**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${imageTag}\`
 
             The environment will be automatically destroyed when this PR is closed.
             `;
@@ -255,19 +264,13 @@ jobs:
           path: .
 
       - name: Run Cypress tests
-        env:
-          APP_URL: https://${{ needs.manage-environment.outputs.dns_name }}
-          APP_NAME: cks-frontend
-          TEST_ENV: ephemeral
-          CYPRESS_CACHE_FOLDER: /tmp/.cache/Cypress
-        run: |
-          echo "Running Cypress tests for ${APP_NAME} at ${APP_URL}"
-
-          # Install dependencies
-          npm ci
-
-          # Run Cypress tests
-          npx cypress run \
-            --spec "cypress/e2e/${APP_NAME}.cy.js" \
-            --env CKS_FRONTEND_URL=${APP_URL},TEST_ENV=${TEST_ENV} \
-            --config baseUrl=${APP_URL}
+        id: cypress
+        continue-on-error: true
+        uses: cypress-io/github-action@v6
+        with:
+          spec: cypress/e2e/cks-frontend.cy.js
+          config: baseUrl=https://${{ needs.manage-environment.outputs.dns_name }}
+          env: CKS_FRONTEND_URL=https://${{ needs.manage-environment.outputs.dns_name }},TEST_ENV=ephemeral
+          browser: chrome
+          install-command: npm ci
+          summary-title: Cypress Test Results
