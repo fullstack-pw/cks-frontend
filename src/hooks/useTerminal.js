@@ -1,173 +1,186 @@
-// frontend/hooks/useTerminal.js
 import { useState, useCallback, useRef, useEffect } from 'react';
 import api from '../lib/api';
 import { useToast } from '../contexts/ToastContext';
 
 export function useTerminal(sessionId) {
-  // Terminal state management
-  const [terminals, setTerminals] = useState({
-    'control-plane': { id: null, status: 'disconnected', isLoading: false, error: null },
-    'worker-node': { id: null, status: 'disconnected', isLoading: false, error: null }
-  });
-  const [activeTerminal, setActiveTerminal] = useState('control-plane');
-  const [sessionStatus, setSessionStatus] = useState({
-    isReady: false,
-    isLoading: true,
-    message: 'Checking session status...',
-    error: null
-  });
-
-  const toast = useToast();
-  const isMounted = useRef(true);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
-
-  // Check session status
-  useEffect(() => {
-    if (!sessionId) return;
-
-    let cancelled = false;
-
-    const checkSessionStatus = async () => {
-      if (cancelled) return;
-
-      try {
-        const session = await api.sessions.get(sessionId);
-
-        if (cancelled || !isMounted.current) return;
-
-        if (session.status === 'running') {
-          setSessionStatus({
-            isReady: true,
-            isLoading: false,
-            message: 'Session is ready',
-            error: null
-          });
-        } else if (session.status === 'failed') {
-          setSessionStatus({
-            isReady: false,
-            isLoading: false,
-            message: `Session failed: ${session.statusMessage || 'Unknown error'}`,
-            error: session.statusMessage || 'Session failed'
-          });
-        } else {
-          setSessionStatus({
-            isReady: false,
-            isLoading: true,
-            message: `Session status: ${session.status}`,
-            error: null
-          });
-        }
-      } catch (error) {
-        if (cancelled || !isMounted.current) return;
-
-        setSessionStatus({
-          isReady: false,
-          isLoading: false,
-          message: 'Unable to check session status',
-          error: error.message || 'Unknown error'
-        });
-      }
-    };
-
-    checkSessionStatus();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId]);
-
-  // Create terminal session
-  const createTerminal = useCallback(async (target) => {
-    console.log(`createTerminal called for ${target}`, {
-      sessionReady: sessionStatus.isReady,
-      currentTerminalState: terminals[target]
+    const [terminals, setTerminals] = useState({
+        'control-plane': [],
+        'worker-node': []
     });
-    if (!sessionStatus.isReady) {
-      toast.error('Session not ready for terminal creation');
-      return null;
-    }
+    const [activeTarget, setActiveTarget] = useState('control-plane');
+    const [activeTabId, setActiveTabId] = useState(null);
+    const [sessionStatus, setSessionStatus] = useState({
+        isReady: false,
+        isLoading: true,
+        message: 'Checking session status...',
+        error: null
+    });
 
-    if (terminals[target].isLoading) {
-      return null;
-    }
+    const toast = useToast();
+    const isMounted = useRef(true);
+    const nextIdRef = useRef({ 'control-plane': 1, 'worker-node': 1 });
 
-    try {
-      setTerminals(prev => ({
-        ...prev,
-        [target]: { ...prev[target], isLoading: true, error: null }
-      }));
+    useEffect(() => {
+        isMounted.current = true;
+        return () => {
+            isMounted.current = false;
+        };
+    }, []);
 
-      console.log(`Creating terminal for ${target}...`);
-      const result = await api.terminals.create(sessionId, target);
+    useEffect(() => {
+        if (!sessionId) return;
 
-      if (isMounted.current) {
+        let cancelled = false;
+
+        const checkSessionStatus = async () => {
+            if (cancelled) return;
+
+            try {
+                const session = await api.sessions.get(sessionId);
+
+                if (cancelled || !isMounted.current) return;
+
+                if (session.status === 'running') {
+                    setSessionStatus({
+                        isReady: true,
+                        isLoading: false,
+                        message: 'Session is ready',
+                        error: null
+                    });
+                } else if (session.status === 'failed') {
+                    setSessionStatus({
+                        isReady: false,
+                        isLoading: false,
+                        message: `Session failed: ${session.statusMessage || 'Unknown error'}`,
+                        error: session.statusMessage || 'Session failed'
+                    });
+                } else {
+                    setSessionStatus({
+                        isReady: false,
+                        isLoading: true,
+                        message: `Session status: ${session.status}`,
+                        error: null
+                    });
+                }
+            } catch (error) {
+                if (cancelled || !isMounted.current) return;
+
+                setSessionStatus({
+                    isReady: false,
+                    isLoading: false,
+                    message: 'Unable to check session status',
+                    error: error.message || 'Unknown error'
+                });
+            }
+        };
+
+        checkSessionStatus();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [sessionId]);
+
+    const createTerminal = useCallback(async (target) => {
+        if (!sessionStatus.isReady) {
+            toast.error('Session not ready for terminal creation');
+            return null;
+        }
+
+        const prefix = target === 'control-plane' ? 'cp' : 'wk';
+        const num = nextIdRef.current[target]++;
+        const id = `${prefix}-${num}`;
+
         setTerminals(prev => ({
-          ...prev,
-          [target]: {
-            id: result.terminalId,
-            status: 'connected',
-            isLoading: false,
-            error: null
-          }
+            ...prev,
+            [target]: [...prev[target], { id, url: null, isLoading: true, error: null }]
         }));
+        setActiveTabId(id);
 
-        console.log(`Terminal created: ${result.terminalId}`);
-        return result.terminalId;
-      }
-    } catch (error) {
-      console.error(`Failed to create ${target} terminal:`, error);
+        try {
+            const result = await api.terminals.create(sessionId, target);
 
-      if (isMounted.current) {
-        setTerminals(prev => ({
-          ...prev,
-          [target]: {
-            ...prev[target],
-            isLoading: false,
-            error: error.message || `Failed to create terminal for ${target}`
-          }
-        }));
-        toast.error(`Failed to create ${target} terminal`);
-      }
-      return null;
-    }
-  }, [sessionId, sessionStatus.isReady, terminals, toast]);
+            if (isMounted.current) {
+                setTerminals(prev => ({
+                    ...prev,
+                    [target]: prev[target].map(t =>
+                        t.id === id ? { ...t, url: result.terminalUrl, isLoading: false } : t
+                    )
+                }));
+            }
 
-  // Handle terminal connection status change
-  const handleConnectionChange = useCallback((target, isConnected) => {
-    if (isMounted.current) {
-      setTerminals(prev => ({
-        ...prev,
-        [target]: { ...prev[target], status: isConnected ? 'connected' : 'disconnected' }
-      }));
-    }
-  }, []);
+            return id;
+        } catch (error) {
+            if (isMounted.current) {
+                setTerminals(prev => ({
+                    ...prev,
+                    [target]: prev[target].map(t =>
+                        t.id === id ? { ...t, isLoading: false, error: error.message || `Failed to create terminal` } : t
+                    )
+                }));
+                toast.error(`Failed to create ${target} terminal`);
+            }
+            return null;
+        }
+    }, [sessionId, sessionStatus.isReady, toast]);
 
-  // Switch active terminal tab
-  const switchTerminal = useCallback((target) => {
-    setActiveTerminal(target);
+    const switchTarget = useCallback((target) => {
+        setActiveTarget(target);
 
-    // Create terminal if it doesn't exist and session is ready
-    if (sessionStatus.isReady && !terminals[target].id && !terminals[target].isLoading) {
-      createTerminal(target);
-    }
-  }, [sessionStatus.isReady, terminals, createTerminal]);
+        setTerminals(prev => {
+            const tabs = prev[target];
+            if (tabs.length > 0) {
+                setActiveTabId(tabs[0].id);
+            } else if (sessionStatus.isReady) {
+                setTimeout(() => createTerminal(target), 0);
+            }
+            return prev;
+        });
+    }, [sessionStatus.isReady, createTerminal]);
 
-  return {
-    terminals,
-    activeTerminal,
-    sessionStatus,
-    createTerminal,
-    switchTerminal,
-    handleConnectionChange,
-    isSessionReady: sessionStatus.isReady
-  };
+    const switchTab = useCallback((tabId) => {
+        setActiveTabId(tabId);
+    }, []);
+
+    const addTerminal = useCallback(() => {
+        createTerminal(activeTarget);
+    }, [activeTarget, createTerminal]);
+
+    const closeTerminal = useCallback((tabId) => {
+        for (const target of ['control-plane', 'worker-node']) {
+            setTerminals(prev => {
+                const tabs = prev[target];
+                const idx = tabs.findIndex(t => t.id === tabId);
+                if (idx === -1) return prev;
+
+                const newTabs = tabs.filter(t => t.id !== tabId);
+
+                if (tabId === activeTabId) {
+                    if (newTabs.length > 0) {
+                        const newIdx = Math.min(idx, newTabs.length - 1);
+                        setActiveTabId(newTabs[newIdx].id);
+                    } else {
+                        setActiveTabId(null);
+                    }
+                }
+
+                return { ...prev, [target]: newTabs };
+            });
+        }
+    }, [activeTabId]);
+
+    return {
+        terminals,
+        activeTarget,
+        activeTabId,
+        sessionStatus,
+        createTerminal,
+        addTerminal,
+        closeTerminal,
+        switchTarget,
+        switchTab,
+        isSessionReady: sessionStatus.isReady
+    };
 }
 
 export default useTerminal;
