@@ -1,12 +1,8 @@
-// frontend/components/TerminalContainer.js
 import React from 'react';
 import Terminal from './Terminal';
-import { Button, LoadingState, ErrorState, StatusIndicator } from './common';
+import { Button, LoadingState, ErrorState } from './common';
 import { useTerminal } from '../hooks/useTerminal';
 
-/**
- * Container component for terminals that manages tabs using the unified useTerminal hook
- */
 const TerminalContainer = ({ sessionId }) => {
     const {
         terminals,
@@ -14,13 +10,11 @@ const TerminalContainer = ({ sessionId }) => {
         sessionStatus,
         createTerminal,
         switchTerminal,
-        handleConnectionChange,
         isSessionReady
     } = useTerminal(sessionId);
 
     return (
         <div className="h-full flex flex-col">
-            {/* Terminal tabs */}
             <div className="bg-gray-800 px-4 py-2 text-white flex overflow-x-auto">
                 <Button
                     variant={activeTerminal === 'control-plane' ? 'primary' : 'secondary'}
@@ -29,9 +23,6 @@ const TerminalContainer = ({ sessionId }) => {
                     className={`mr-2 flex items-center ${!isSessionReady ? 'opacity-50' : ''}`}
                 >
                     Control Plane
-                    {terminals['control-plane'].status === 'connected' && (
-                        <StatusIndicator status="connected" size="sm" className="ml-2" />
-                    )}
                 </Button>
 
                 <Button
@@ -41,15 +32,10 @@ const TerminalContainer = ({ sessionId }) => {
                     className={`flex items-center ${!isSessionReady ? 'opacity-50' : ''}`}
                 >
                     Worker Node
-                    {terminals['worker-node'].status === 'connected' && (
-                        <StatusIndicator status="connected" size="sm" className="ml-2" />
-                    )}
                 </Button>
             </div>
 
-            {/* Terminal content area */}
             <div className="flex-1 overflow-hidden relative">
-                {/* Session not ready state */}
                 {!isSessionReady && (
                     <div className="flex flex-col justify-center items-center h-full bg-gray-800 text-white p-4">
                         {sessionStatus.isLoading ? (
@@ -69,17 +55,12 @@ const TerminalContainer = ({ sessionId }) => {
                     </div>
                 )}
 
-                {/* Terminal content */}
                 {isSessionReady && (
                     <>
-                        {/* Control plane terminal */}
                         <div className={`absolute inset-0 transition-opacity duration-300 ${activeTerminal === 'control-plane' ? 'opacity-100 z-10' : 'opacity-0 z-0'
                             }`}>
-                            {terminals['control-plane'].id ? (
-                                <Terminal
-                                    terminalId={terminals['control-plane'].id}
-                                    onConnectionChange={(connected) => handleConnectionChange('control-plane', connected)}
-                                />
+                            {terminals['control-plane'].url ? (
+                                <Terminal terminalUrl={terminals['control-plane'].url} />
                             ) : (
                                 <div className="flex flex-col justify-center items-center h-full bg-gray-800 text-white p-4">
                                     {terminals['control-plane'].isLoading ? (
@@ -102,14 +83,10 @@ const TerminalContainer = ({ sessionId }) => {
                             )}
                         </div>
 
-                        {/* Worker node terminal */}
                         <div className={`absolute inset-0 transition-opacity duration-300 ${activeTerminal === 'worker-node' ? 'opacity-100 z-10' : 'opacity-0 z-0'
                             }`}>
-                            {terminals['worker-node'].id ? (
-                                <Terminal
-                                    terminalId={terminals['worker-node'].id}
-                                    onConnectionChange={(connected) => handleConnectionChange('worker-node', connected)}
-                                />
+                            {terminals['worker-node'].url ? (
+                                <Terminal terminalUrl={terminals['worker-node'].url} />
                             ) : (
                                 <div className="flex flex-col justify-center items-center h-full bg-gray-800 text-white p-4">
                                     {terminals['worker-node'].isLoading ? (

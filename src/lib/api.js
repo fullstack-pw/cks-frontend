@@ -237,26 +237,6 @@ class ApiClient {
             body: JSON.stringify({ target })
         }),
 
-        /**
-         * Resize a terminal
-         * @param {string} terminalId - Terminal ID
-         * @param {number} rows - Number of rows
-         * @param {number} cols - Number of columns
-         * @returns {Promise<Object>} - Success indicator
-         */
-        resize: (terminalId, rows, cols) => this.fetchWithRetry(`/terminals/${terminalId}/resize`, {
-            method: 'POST',
-            body: JSON.stringify({ rows, cols })
-        }, 1), // Only retry once for resize to avoid flooding
-
-        /**
-         * Close a terminal session
-         * @param {string} terminalId - Terminal ID
-         * @returns {Promise<null>} - Success indicator
-         */
-        close: (terminalId) => this.fetchWithRetry(`/terminals/${terminalId}`, {
-            method: 'DELETE'
-        })
     };
 
     // Task endpoints
@@ -304,28 +284,6 @@ class ApiClient {
         })
     };
 }
-
-/**
- * Create WebSocket connection for terminal
- * @param {string} terminalId - Terminal ID
- * @returns {WebSocket} - WebSocket connection
- */
-export const createTerminalConnection = (terminalId) => {
-    // Get backend URL from environment
-    const backendUrl = process.env.API_BASE_URL || 'http://localhost:8080/api/v1';
-
-    // Parse backend URL to get host and protocol
-    const url = new URL(backendUrl);
-    const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = url.host;
-
-    // Create the correct WebSocket URL
-    const wsPath = `/api/v1/terminals/${terminalId}/attach`;
-    const wsUrl = `${protocol}//${host}${wsPath}`;
-
-    console.log(`Creating WebSocket connection to: ${wsUrl}`);
-    return new WebSocket(wsUrl);
-};
 
 // Create and export a singleton instance
 const api = new ApiClient();
