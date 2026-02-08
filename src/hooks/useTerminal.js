@@ -4,10 +4,11 @@ import { useToast } from '../contexts/ToastContext';
 
 export function useTerminal(sessionId) {
     const [terminals, setTerminals] = useState({
-        'control-plane': { url: null, isLoading: false, error: null },
-        'worker-node': { url: null, isLoading: false, error: null }
+        'control-plane': [],
+        'worker-node': []
     });
-    const [activeTerminal, setActiveTerminal] = useState('control-plane');
+    const [activeTarget, setActiveTarget] = useState('control-plane');
+    const [activeTabId, setActiveTabId] = useState(null);
     const [sessionStatus, setSessionStatus] = useState({
         isReady: false,
         isLoading: true,
@@ -17,6 +18,7 @@ export function useTerminal(sessionId) {
 
     const toast = useToast();
     const isMounted = useRef(true);
+    const nextIdRef = useRef({ 'control-plane': 1, 'worker-node': 1 });
 
     useEffect(() => {
         isMounted.current = true;
@@ -85,60 +87,98 @@ export function useTerminal(sessionId) {
             return null;
         }
 
-        if (terminals[target].isLoading) {
-            return null;
-        }
+        const prefix = target === 'control-plane' ? 'cp' : 'wk';
+        const num = nextIdRef.current[target]++;
+        const id = `${prefix}-${num}`;
+
+        setTerminals(prev => ({
+            ...prev,
+            [target]: [...prev[target], { id, url: null, isLoading: true, error: null }]
+        }));
+        setActiveTabId(id);
 
         try {
-            setTerminals(prev => ({
-                ...prev,
-                [target]: { ...prev[target], isLoading: true, error: null }
-            }));
-
             const result = await api.terminals.create(sessionId, target);
 
             if (isMounted.current) {
                 setTerminals(prev => ({
                     ...prev,
-                    [target]: {
-                        url: result.terminalUrl,
-                        isLoading: false,
-                        error: null
-                    }
+                    [target]: prev[target].map(t =>
+                        t.id === id ? { ...t, url: result.terminalUrl, isLoading: false } : t
+                    )
                 }));
-
-                return result.terminalUrl;
             }
+
+            return id;
         } catch (error) {
             if (isMounted.current) {
                 setTerminals(prev => ({
                     ...prev,
-                    [target]: {
-                        ...prev[target],
-                        isLoading: false,
-                        error: error.message || `Failed to create terminal for ${target}`
-                    }
+                    [target]: prev[target].map(t =>
+                        t.id === id ? { ...t, isLoading: false, error: error.message || `Failed to create terminal` } : t
+                    )
                 }));
                 toast.error(`Failed to create ${target} terminal`);
             }
             return null;
         }
-    }, [sessionId, sessionStatus.isReady, terminals, toast]);
+    }, [sessionId, sessionStatus.isReady, toast]);
 
-    const switchTerminal = useCallback((target) => {
-        setActiveTerminal(target);
+    const switchTarget = useCallback((target) => {
+        setActiveTarget(target);
 
-        if (sessionStatus.isReady && !terminals[target].url && !terminals[target].isLoading) {
-            createTerminal(target);
+        setTerminals(prev => {
+            const tabs = prev[target];
+            if (tabs.length > 0) {
+                setActiveTabId(tabs[0].id);
+            } else if (sessionStatus.isReady) {
+                setTimeout(() => createTerminal(target), 0);
+            }
+            return prev;
+        });
+    }, [sessionStatus.isReady, createTerminal]);
+
+    const switchTab = useCallback((tabId) => {
+        setActiveTabId(tabId);
+    }, []);
+
+    const addTerminal = useCallback(() => {
+        createTerminal(activeTarget);
+    }, [activeTarget, createTerminal]);
+
+    const closeTerminal = useCallback((tabId) => {
+        for (const target of ['control-plane', 'worker-node']) {
+            setTerminals(prev => {
+                const tabs = prev[target];
+                const idx = tabs.findIndex(t => t.id === tabId);
+                if (idx === -1) return prev;
+
+                const newTabs = tabs.filter(t => t.id !== tabId);
+
+                if (tabId === activeTabId) {
+                    if (newTabs.length > 0) {
+                        const newIdx = Math.min(idx, newTabs.length - 1);
+                        setActiveTabId(newTabs[newIdx].id);
+                    } else {
+                        setActiveTabId(null);
+                    }
+                }
+
+                return { ...prev, [target]: newTabs };
+            });
         }
-    }, [sessionStatus.isReady, terminals, createTerminal]);
+    }, [activeTabId]);
 
     return {
         terminals,
-        activeTerminal,
+        activeTarget,
+        activeTabId,
         sessionStatus,
         createTerminal,
-        switchTerminal,
+        addTerminal,
+        closeTerminal,
+        switchTarget,
+        switchTab,
         isSessionReady: sessionStatus.isReady
     };
 }
