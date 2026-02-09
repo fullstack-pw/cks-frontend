@@ -9,11 +9,11 @@ Production-ready React application implementing sophisticated state management w
 ### Core Components
 
 **Terminal System** (`src/components/Terminal.js`, `src/components/TerminalContainer.js`)
-- Full xterm.js integration with dynamic imports (no SSR) to prevent Node.js compatibility issues
-- WebSocket binary protocol for bidirectional terminal I/O with ArrayBuffer handling
-- Exponential backoff reconnection (1s to 2min with jitter) preventing thundering herd
-- Addon integration: FitAddon (auto-resize), SearchAddon (Ctrl+F with regex), WebLinksAddon (clickable URLs)
-- Tab-based interface for control-plane and worker-node terminals with lazy creation
+- iframe-based terminal rendering via cks-terminal-mgmt (ttyd)
+- Multi-terminal tabs: "+" button spawns additional terminals per target type (Control Plane / Worker Node)
+- Closable tabs with automatic activation of adjacent tab
+- All terminal sessions persist when switching between targets (iframes stay mounted in DOM)
+- Lazy terminal creation on tab switch
 
 **State Management Architecture**
 - SWR (Stale-While-Revalidate) with 2-minute polling, focus revalidation, and 10-second deduplication
@@ -207,39 +207,26 @@ useSWR(key, fetcher, {
 4. On success: cache updated, components re-render
 5. On error: retry with exponential backoff, show error state
 
-### WebSocket Terminal Implementation
+### Terminal Architecture
 
-**Connection Management**:
-```javascript
-const protocol = apiUrl.startsWith('https') ? 'wss:' : 'ws:';
-const wsUrl = `${protocol}://${host}/api/v1/terminals/${terminalId}/attach`;
-const socket = new WebSocket(wsUrl);
-socket.binaryType = 'arraybuffer';
+Terminal access is delegated to [cks-terminal-mgmt](https://github.com/fullstack-pw/cks-terminal-mgmt), a dedicated microservice running on the sandboxy cluster.
+
+**Flow**:
+```
+Browser → iframe → cks-terminal-mgmt → ttyd → SSH → KubeVirt VM
 ```
 
-**Reconnection Strategy**:
-```javascript
-const calculateDelay = () => {
-  const baseDelay = 1000;
-  const maxDelay = 120000;  // 2 minutes
-  const delay = Math.min(
-    baseDelay * Math.pow(1.5, attemptCount),
-    maxDelay
-  );
-  return delay + (Math.random() * 1000);  // Add jitter
-};
-```
+1. Frontend calls `POST /api/v1/sessions/:id/terminals` with target (`control-plane` or `worker-node`)
+2. Backend resolves VM name to IP via KubeVirt API, returns terminal-mgmt URL
+3. Frontend renders URL in an iframe
+4. ttyd handles xterm.js rendering, WebSocket, and terminal resize natively
 
-**Binary Protocol**:
-- Incoming: Blob → ArrayBuffer → Uint8Array → terminal.write()
-- Outgoing: User input → TextEncoder → send()
-- Resize messages: Custom 5-byte binary format (type + cols + rows)
-
-**Advanced Features**:
-- Search with Ctrl+F (regex support, result highlighting, navigation)
-- Clickable URLs in terminal output
-- Auto-resize on window changes
-- Cleanup architecture prevents memory leaks (event listeners, timeouts, WebSocket)
+**Multi-Terminal Tabs**:
+- Two-level navigation: target type (Control Plane / Worker Node) and sub-tabs (CP 1, CP 2, etc.)
+- "+" button creates a new terminal session for the active target type
+- Closable tabs (X button, shown when >1 tab exists)
+- Sequential tab naming via counter ref (CP 1, CP 2, WK 1, WK 2...)
+- All iframes remain mounted with `pointer-events-none` on inactive tabs to preserve sessions
 
 ### Error Handling Architecture
 
@@ -274,33 +261,6 @@ ErrorHandler.processApiError(error, context) {
 - Toast notifications: User feedback
 
 ## Technical Innovations
-
-### Dynamic Import Strategy
-
-**Problem**: xterm.js is browser-only, crashes on server-side rendering
-
-**Solution**:
-```javascript
-const Terminal = dynamic(() => {
-  return Promise.all([
-    import('@xterm/xterm'),
-    import('@xterm/addon-fit'),
-    import('@xterm/addon-search'),
-    import('@xterm/addon-web-links')
-  ]).then(([xterm, fit, search, weblinks]) => {
-    // Component implementation
-  });
-}, {
-  ssr: false,  // Disable SSR
-  loading: () => <LoadingSpinner />
-});
-```
-
-**Benefits**:
-- Prevents SSR errors
-- Parallel addon loading
-- Reduces initial bundle size
-- Graceful loading state
 
 ### Optimistic UI Updates
 
@@ -506,11 +466,7 @@ const handleDelete = async (sessionId) => {
 - Custom hooks (5 specialized hooks)
 
 **Terminal**:
-- @xterm/xterm 5.5 (terminal emulator)
-- @xterm/addon-fit (auto-sizing)
-- @xterm/addon-search (Ctrl+F search)
-- @xterm/addon-web-links (clickable URLs)
-- WebSocket (real-time communication)
+- iframe-based rendering via [cks-terminal-mgmt](https://github.com/fullstack-pw/cks-terminal-mgmt) (ttyd)
 
 **Content & Utilities**:
 - react-markdown 8.0 (Markdown rendering)
@@ -556,8 +512,8 @@ cks-frontend/
 │   │   └── 404.js                  # Custom 404 page
 │   ├── components/
 │   │   ├── common/                 # Reusable UI (11 components)
-│   │   ├── Terminal.js             # xterm.js terminal
-│   │   ├── TerminalContainer.js    # Terminal tabs
+│   │   ├── Terminal.js             # iframe terminal wrapper
+│   │   ├── TerminalContainer.js    # Multi-terminal tabs
 │   │   ├── TaskPanel.js            # Task list UI
 │   │   ├── TaskValidation.js       # Validation display
 │   │   ├── ScenarioCard.js         # Scenario display
@@ -565,7 +521,7 @@ cks-frontend/
 │   │   └── Toast.js                # Notification system
 │   ├── hooks/
 │   │   ├── useSession.js           # Session management with SWR
-│   │   ├── useTerminal.js          # Terminal connection
+│   │   ├── useTerminal.js          # Multi-terminal state management
 │   │   ├── useTaskValidation.js    # Task validation logic
 │   │   ├── useScenario.js          # Scenario data fetching
 │   │   └── useError.js             # Error handling
@@ -600,7 +556,7 @@ cks-frontend/
 
 **Runtime Performance**:
 - Time to Interactive: <2 seconds (SWR cached)
-- Terminal connection: <500ms
+- Terminal connection: <2 seconds (ttyd spawn + SSH)
 - Validation execution: 2-10 seconds (backend-dependent)
 - SWR cache hit rate: ~80% (2-minute refresh)
 
@@ -611,9 +567,7 @@ cks-frontend/
 
 **Network**:
 - Initial page load: ~300KB (gzipped)
-- xterm.js lazy load: ~150KB
-- WebSocket overhead: <1KB/s (terminal idle)
-- WebSocket throughput: ~100KB/s (terminal active)
+- Terminal iframe: ~50KB (ttyd frontend)
 
 ## Security Implementation
 
