@@ -48,7 +48,7 @@ spec:
       scaleDownDelaySeconds: 30
       prePromotionAnalysis:
         templates:
-          - templateName: cypress-tests
+          - templateName: cypress-tests-cks-frontend
         args:
           - name: app-name
             value: cks-frontend
