@@ -3,7 +3,7 @@
 # Variables
 APP_NAME = cks-frontend
 VERSION ?= latest
-REGISTRY ?= registry.fullstack.pw
+REGISTRY ?= registry.toolz.fullstack.pw
 IMAGE = $(REGISTRY)/$(APP_NAME):$(VERSION)
 NAMESPACE ?= cks-system
 
